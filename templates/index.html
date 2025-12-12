@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omnilingual ASR Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎤 Omnilingual ASR Dashboard</h1>
+            <p class="subtitle">Upload audio files and get transcriptions in multiple languages</p>
+        </header>
+
+        <main>
+            <!-- Microphone Recording Section -->
+            <section class="recording-section">
+                <h2>🎙️ Record from Microphone</h2>
+                <div class="recording-controls">
+                    <button class="btn btn-record" id="recordBtn">
+                        <span class="record-icon">🎤</span>
+                        <span class="record-text">Start Recording</span>
+                    </button>
+                    <button class="btn btn-stop" id="stopBtn" disabled style="display: none;">
+                        <span class="stop-icon">⏹️</span>
+                        <span class="stop-text">Stop Recording</span>
+                    </button>
+                    <div class="recording-status" id="recordingStatus" style="display: none;">
+                        <div class="recording-indicator">
+                            <span class="pulse-dot"></span>
+                            <span id="recordingTimer">00:00</span>
+                        </div>
+                        <div class="recording-warning" id="recordingWarning"></div>
+                    </div>
+                </div>
+                <div class="audio-visualizer" id="audioVisualizer" style="display: none;">
+                    <canvas id="waveformCanvas" width="400" height="80"></canvas>
+                </div>
+            </section>
+
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <h2>📁 Or Upload Audio File</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <h3>Drag & Drop Audio File</h3>
+                        <p>or</p>
+                        <button class="btn btn-primary" id="uploadBtn">Choose File</button>
+                        <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+                        <p class="file-info" id="fileInfo"></p>
+                    </div>
+                </div>
+
+                <!-- Language Selection -->
+                <div class="language-section">
+                    <label for="langSelect">Language:</label>
+                    <select id="langSelect" class="lang-select">
+                        {% for code, name in languages %}
+                        <option value="{{ code }}" {% if code == 'ben_Beng' %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Process Button -->
+                <button class="btn btn-process" id="processBtn" disabled>
+                    <span class="btn-text">Transcribe</span>
+                    <span class="btn-spinner" style="display: none;">⏳ Processing...</span>
+                </button>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <div class="result-header">
+                    <h2>Transcription Result</h2>
+                    <button class="btn btn-secondary" id="downloadBtn">Download as Text</button>
+                </div>
+                <div class="result-content">
+                    <div class="result-meta">
+                        <span id="resultFilename"></span>
+                        <span id="resultLang"></span>
+                    </div>
+                    <div class="result-text" id="resultText"></div>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section class="history-section">
+                <div class="history-header">
+                    <h2>Recent History</h2>
+                    <button class="btn btn-link" id="refreshHistoryBtn">Refresh</button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <p class="empty-state">No history yet. Upload and transcribe an audio file to get started!</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
+
