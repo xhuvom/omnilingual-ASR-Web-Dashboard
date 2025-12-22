@@ -1,0 +1,43 @@
+Looking in indexes: https://pypi.org/simple, https://pypi.ngc.nvidia.com
+Collecting polars
+  Downloading polars-1.36.1-py3-none-any.whl.metadata (10 kB)
+Collecting pyarrow
+  Downloading pyarrow-22.0.0-cp310-cp310-manylinux_2_28_x86_64.whl.metadata (3.2 kB)
+Collecting numba
+  Downloading numba-0.63.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.9 kB)
+Collecting editdistance
+  Downloading editdistance-0.8.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.9 kB)
+Collecting kenlm
+  Downloading kenlm-0.3.0.tar.gz (427 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting polars-runtime-32==1.36.1 (from polars)
+  Downloading polars_runtime_32-1.36.1-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.5 kB)
+Collecting llvmlite<0.47,>=0.46.0dev0 (from numba)
+  Downloading llvmlite-0.46.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (5.0 kB)
+Requirement already satisfied: numpy<2.4,>=1.22 in /home/sigmind/.local/lib/python3.10/site-packages (from numba) (1.26.0)
+Downloading polars-1.36.1-py3-none-any.whl (802 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 802.4/802.4 kB 11.0 MB/s  0:00:00
+Downloading polars_runtime_32-1.36.1-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (44.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.5/44.5 MB 56.0 MB/s  0:00:00
+Downloading pyarrow-22.0.0-cp310-cp310-manylinux_2_28_x86_64.whl (47.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 47.6/47.6 MB 43.5 MB/s  0:00:01
+Downloading numba-0.63.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (3.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 34.8 MB/s  0:00:00
+Downloading llvmlite-0.46.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (56.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 MB 29.1 MB/s  0:00:01
+Downloading editdistance-0.8.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (401 kB)
+Building wheels for collected packages: kenlm
+  Building wheel for kenlm (pyproject.toml): started
+  Building wheel for kenlm (pyproject.toml): finished with status 'done'
+  Created wheel for kenlm: filename=kenlm-0.3.0-cp310-cp310-linux_x86_64.whl size=604035 sha256=d0f8ab7cc09af0bb0de4654e0acef95eea67067c78f0efc03a2467b71a5ab7d9
+  Stored in directory: /tmp/pip-ephem-wheel-cache-79bc5m0v/wheels/86/57/70/f69b85d0dd1368f139ea278de9eb67b45977d00dd70b7674de
+Successfully built kenlm
+Installing collected packages: kenlm, pyarrow, polars-runtime-32, llvmlite, editdistance, polars, numba
+
+Successfully installed editdistance-0.8.1 kenlm-0.3.0 llvmlite-0.46.0 numba-0.63.1 polars-1.36.1 polars-runtime-32-1.36.1 pyarrow-22.0.0
+

@@ -54,7 +54,39 @@ header h1 {
 main {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.5rem;
+}
+
+/* Navigation Tabs */
+.nav-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 1rem;
+}
+
+.nav-tab {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 8px;
+}
+
+.nav-tab:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-tab.active {
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 section {
@@ -140,10 +172,13 @@ section {
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
         transform: scale(1);
     }
+
     50% {
         opacity: 0.5;
         transform: scale(1.2);
@@ -349,6 +384,7 @@ section {
         opacity: 0;
         transform: translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -468,6 +504,7 @@ section {
     margin-top: 0.75rem;
     display: -webkit-box;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -511,8 +548,245 @@ section {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
+
+/* Data Collection Styles */
+.data-collection-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    align-items: center;
+    text-align: center;
+}
+
+.collection-header h2 {
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--bg-color);
+    padding: 0.25rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+}
+
+.btn-sm {
+    padding: 0.4rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+}
+
+.btn-sm.active {
+    background: white;
+    color: var(--primary-color);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+}
+
+.progress-indicator {
+    margin-top: 0.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--bg-color);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.prompt-card {
+    background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 2rem;
+    width: 100%;
+    max-width: 800px;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+}
+
+.prompt-category {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.prompt-text {
+    font-size: 1.8rem;
+    line-height: 1.4;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.prompt-input {
+    width: 100%;
+    min-height: 100px;
+    padding: 1rem;
+    font-size: 1.2rem;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    resize: vertical;
+    font-family: inherit;
+    outline: none;
+}
+
+.prompt-input:focus {
+    border-color: var(--primary-color);
+    background: #f8fafc;
+}
+
+.visualizer {
+    height: 120px;
+    width: 120px;
+    background: var(--bg-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2rem;
+    position: relative;
+    border: 4px solid var(--border-color);
+}
+
+.recording-status-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.visualizer.recording {
+    border-color: var(--danger-color);
+    animation: pulse-border 1.5s infinite;
+}
+
+.visualizer.recording .pulse-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    background: rgba(239, 68, 68, 0.2);
+    border-radius: 50%;
+    animation: pulse-ring 1.5s infinite;
+}
+
+@keyframes pulse-border {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 0;
+    }
+}
+
+.controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.btn-record {
+    background: var(--danger-color);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-size: 1.2rem;
+}
+
+.btn-record:hover:not(:disabled) {
+    background: #dc2626;
+    transform: scale(1.05);
+}
+
+.btn-stop {
+    background: var(--text-primary);
+    color: white;
+}
+
+.btn-play {
+    background: var(--success-color);
+    color: white;
+}
+
+.submission-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    max-width: 400px;
+}
+
+.contribution-message {
+    height: 20px;
+    font-weight: 500;
+}
+
+.contribution-message.success {
+    color: var(--success-color);
+}
+
+.contribution-message.error {
+    color: var(--danger-color);
+}
+
+/* Hidden/Active Tab Logic */
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -539,4 +813,3 @@ section {
         gap: 0.5rem;
     }
 }
-

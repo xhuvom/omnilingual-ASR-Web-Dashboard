@@ -1,0 +1,6 @@
+peft
+datasets==2.19.0
+librosa
+jiwer
+soundfile
+evaluate

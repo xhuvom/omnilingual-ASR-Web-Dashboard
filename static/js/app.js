@@ -1,11 +1,12 @@
 // Wait for DOM to be ready
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // DOM Elements
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
     const uploadBtn = document.getElementById('uploadBtn');
     const processBtn = document.getElementById('processBtn');
     const langSelect = document.getElementById('langSelect');
+    const modelSelect = document.getElementById('modelSelect');
     const fileInfo = document.getElementById('fileInfo');
     const resultsSection = document.getElementById('resultsSection');
     const resultText = document.getElementById('resultText');
@@ -15,14 +16,54 @@ document.addEventListener('DOMContentLoaded', function() {
     const historyList = document.getElementById('historyList');
     const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
 
-    // Recording elements
+    // Transcribe Tab Elements
+    const transcribeRecordBtn = document.getElementById('transcribeRecordBtn');
+    const transcribeStopBtn = document.getElementById('transcribeStopBtn');
+    const transcribeRecordingStatus = document.getElementById('transcribeRecordingStatus');
+    const transcribeRecordingTimer = document.getElementById('transcribeRecordingTimer');
+    const transcribeRecordingWarning = document.getElementById('transcribeRecordingWarning');
+    const transcribeAudioVisualizer = document.getElementById('transcribeAudioVisualizer');
+    const transcribeWaveformCanvas = document.getElementById('transcribeWaveformCanvas');
+
+    // Contribute Tab Elements
+    // Recording elements (Transcription Tab) - Removed/Replaced by Data Collection
+    // const recordBtn = document.getElementById('recordBtn'); 
+    // ...
+
+    // Data Collection Elements
     const recordBtn = document.getElementById('recordBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const recordingStatus = document.getElementById('recordingStatus');
-    const recordingTimer = document.getElementById('recordingTimer');
-    const recordingWarning = document.getElementById('recordingWarning');
-    const audioVisualizer = document.getElementById('audioVisualizer');
-    const waveformCanvas = document.getElementById('waveformCanvas');
+    const playBtn = document.getElementById('playBtn');
+    const submitRecordingBtn = document.getElementById('submitRecordingBtn');
+    const skipBtn = document.getElementById('skipBtn');
+
+    // Mode Toggles
+    const modePresetBtn = document.getElementById('modePresetBtn');
+    const modeCustomBtn = document.getElementById('modeCustomBtn');
+    const customPromptInput = document.getElementById('customPromptInput');
+    const progressIndicator = document.getElementById('progressIndicator');
+    const instructionText = document.getElementById('instructionText');
+
+    const promptText = document.getElementById('promptText');
+    const promptCategory = document.getElementById('promptCategory');
+    const currentPromptIndexSpan = document.getElementById('currentPromptIndex');
+    const totalPromptsSpan = document.getElementById('totalPrompts');
+    const contributionMessage = document.getElementById('contributionMessage');
+    const audioPlayback = document.getElementById('audioPlayback');
+    const contributionList = document.getElementById('contributionList');
+
+    // Visualizer
+    const visualizer = document.getElementById('visualizer');
+
+    // Tab Elements
+    const tabs = document.querySelectorAll('.nav-tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    // Check if all required transcription elements exist
+    if (!uploadArea || !fileInput || !uploadBtn || !processBtn) {
+        console.error('Required Transcription DOM elements not found!');
+        return;
+    }
 
     // Check if all required elements exist
     if (!uploadArea || !fileInput || !uploadBtn || !processBtn || !recordBtn || !stopBtn) {
@@ -39,13 +80,185 @@ document.addEventListener('DOMContentLoaded', function() {
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
-    let recordingStartTime = null;
-    let timerInterval = null;
-    let animationFrameId = null;
-    let audioContext = null;
-    let analyser = null;
-    let dataArray = null;
-    const MAX_RECORDING_TIME = 40; // seconds
+    let recordingBlob = null;
+
+    // Data Collection State
+    let prompts = [];
+    let currentPromptIndex = 0;
+    let isCustomMode = false;
+
+    // Navigation Logic
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            tab.classList.add('active');
+            const tabId = tab.dataset.tab;
+
+            if (tabId === 'transcribe') {
+                document.getElementById('transcribeTab').classList.add('active');
+                fetchModels(); // Refresh models when switching to transcribe
+            } else if (tabId === 'long_audio') {
+                document.getElementById('longAudioTab').classList.add('active');
+                fetchModels(); // Refresh models when switching to long audio
+            } else {
+                document.getElementById('contributeTab').classList.add('active');
+                if (prompts.length === 0) loadPrompts();
+            }
+        });
+    });
+
+    // --- Long Audio Elements ---
+    const longAudioUploadArea = document.getElementById('longAudioUploadArea');
+    const longAudioFileInput = document.getElementById('longAudioFileInput');
+    const longAudioUploadBtn = document.getElementById('longAudioUploadBtn');
+    const longAudioProcessBtn = document.getElementById('longAudioProcessBtn');
+    const longAudioLangSelect = document.getElementById('longAudioLangSelect');
+    const longAudioModelSelect = document.getElementById('longAudioModelSelect');
+    const longAudioFileInfo = document.getElementById('longAudioFileInfo');
+    const longAudioResultsSection = document.getElementById('longAudioResultsSection');
+    const longAudioResultsTable = document.getElementById('longAudioResultsTable');
+    const longAudioResultFilename = document.getElementById('longAudioResultFilename');
+    const longAudioResultLang = document.getElementById('longAudioResultLang');
+    const longAudioDownloadBtn = document.getElementById('longAudioDownloadBtn');
+
+    let currentLongAudioFile = null;
+    let currentLongAudioResults = [];
+
+    // Initialize Long Audio Model Select (Sync with main model select logic)
+    // We'll reuse the fetchModels function but populate both selects if they exist
+    // Modified fetchModels below to handle multiple selects or just call it again/copy options.
+    // For simplicity, let's just make sure both get populated.
+
+    if (longAudioModelSelect) {
+        longAudioModelSelect.addEventListener('change', handleModelSwitch);
+    }
+
+    // Long Audio Event Listeners
+    if (longAudioUploadBtn && longAudioFileInput) {
+        longAudioUploadBtn.addEventListener('click', () => longAudioFileInput.click());
+        longAudioFileInput.addEventListener('change', handleLongAudioFileSelect);
+
+        longAudioUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            longAudioUploadArea.classList.add('dragover');
+        });
+        longAudioUploadArea.addEventListener('dragleave', () => {
+            longAudioUploadArea.classList.remove('dragover');
+        });
+        longAudioUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            longAudioUploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleLongAudioFile(file);
+        });
+    }
+
+    if (longAudioProcessBtn) {
+        longAudioProcessBtn.addEventListener('click', handleLongAudioTranscribe);
+    }
+
+    if (longAudioDownloadBtn) {
+        longAudioDownloadBtn.addEventListener('click', handleLongAudioDownload);
+    }
+
+    function handleLongAudioFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) handleLongAudioFile(file);
+    }
+
+    function handleLongAudioFile(file) {
+        if (!file.type.startsWith('audio/')) {
+            alert('Please select an audio file');
+            return;
+        }
+        currentLongAudioFile = file;
+        longAudioFileInfo.textContent = `Selected: ${file.name} (${formatFileSize(file.size)})`;
+        longAudioProcessBtn.disabled = false;
+        longAudioResultsSection.style.display = 'none';
+    }
+
+    async function handleLongAudioTranscribe() {
+        if (!currentLongAudioFile) return;
+
+        longAudioProcessBtn.disabled = true;
+        const btnText = longAudioProcessBtn.querySelector('.btn-text');
+        const btnSpinner = longAudioProcessBtn.querySelector('.btn-spinner');
+        btnText.style.display = 'none';
+        btnSpinner.style.display = 'inline';
+
+        const formData = new FormData();
+        formData.append('file', currentLongAudioFile);
+        formData.append('lang_code', longAudioLangSelect.value);
+
+        try {
+            const response = await fetch('/api/transcribe_long', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Transcription failed');
+
+            currentLongAudioResults = data.results; // List of {segment, filename, text}
+
+            // Render Results
+            renderLongAudioResults(data.results);
+
+            longAudioResultFilename.textContent = `📄 ${data.filename}`;
+            longAudioResultLang.textContent = `🌐 ${data.lang_code}`;
+            longAudioResultsSection.style.display = 'block';
+            longAudioResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            longAudioProcessBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnSpinner.style.display = 'none';
+        }
+    }
+
+    function renderLongAudioResults(results) {
+        if (!results || results.length === 0) {
+            longAudioResultsTable.innerHTML = '<p>No results found.</p>';
+            return;
+        }
+
+        let html = '<div class="table-container" style="overflow-x:auto;"><table style="width:100%; border-collapse: collapse; margin-top: 1rem;">';
+        html += '<thead><tr style="background:#f1f5f9; text-align:left;"><th style="padding:0.75rem; border-bottom:1px solid #e2e8f0;">Segment</th><th style="padding:0.75rem; border-bottom:1px solid #e2e8f0;">Text</th></tr></thead><tbody>';
+
+        results.forEach(item => {
+            html += `<tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:0.75rem; white-space:nowrap; vertical-align:top; font-weight:bold; color:#64748b;">${item.segment}</td>
+                <td style="padding:0.75rem;">${item.text}</td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        longAudioResultsTable.innerHTML = html;
+    }
+
+    function handleLongAudioDownload() {
+        if (!currentLongAudioResults || currentLongAudioResults.length === 0) return;
+
+        const fullText = currentLongAudioResults.map(r => `[Segment ${r.segment}] ${r.text}`).join('\n\n');
+        const blob = new Blob([fullText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `long_transcription_${currentLongAudioFile?.name || 'audio'}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // Model switching event
+    if (modelSelect) {
+        modelSelect.addEventListener('change', handleModelSwitch);
+    }
 
     // Function definitions (must be before event listeners)
     function handleFileSelect(e) {
@@ -158,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (data.history && data.history.length > 0) {
                 historyList.innerHTML = data.history.map(item => createHistoryItem(item)).join('');
-                
+
                 // Add event listeners to history items
                 document.querySelectorAll('.history-item').forEach(item => {
                     item.addEventListener('click', () => {
@@ -185,8 +398,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function createHistoryItem(item) {
         const date = new Date(item.timestamp);
         const timeStr = date.toLocaleString();
-        const preview = item.transcription.length > 150 
-            ? item.transcription.substring(0, 150) + '...' 
+        const preview = item.transcription.length > 150
+            ? item.transcription.substring(0, 150) + '...'
             : item.transcription;
 
         return `
@@ -239,13 +452,13 @@ document.addEventListener('DOMContentLoaded', function() {
     async function startRecording() {
         try {
             // Request microphone access
-            audioStream = await navigator.mediaDevices.getUserMedia({ 
+            audioStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
                     sampleRate: 16000,
                     echoCancellation: true,
                     noiseSuppression: true
-                } 
+                }
             });
 
             // Set up audio context for visualization
@@ -308,7 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
         }
-        
+
         // Stop audio stream
         if (audioStream) {
             audioStream.getTracks().forEach(track => track.stop());
@@ -380,7 +593,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const gradient = ctx.createLinearGradient(0, height, 0, height - barHeight);
                 gradient.addColorStop(0, '#6366f1');
                 gradient.addColorStop(1, '#8b5cf6');
-                
+
                 ctx.fillStyle = gradient;
                 ctx.fillRect(x, height - barHeight, barWidth - 2, barHeight);
                 x += barWidth;
@@ -405,37 +618,287 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    async function processRecordedAudio() {
-        // Convert recorded chunks to WAV format
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        
+    // Data Collection Functions
+    async function loadPrompts() {
         try {
-            // Create a new audio context for decoding (since the visualization one might be closed)
-            const decodeContext = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Convert to WAV using Web Audio API
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            const audioBuffer = await decodeContext.decodeAudioData(arrayBuffer);
-            const wavBlob = audioBufferToWav(audioBuffer);
-            
-            // Close the decode context
-            await decodeContext.close();
-            
-            // Create a File object from the WAV blob
-            const wavFile = new File([wavBlob], `recording_${Date.now()}.wav`, { type: 'audio/wav' });
-            
-            // Set as current file and auto-transcribe
-            currentFile = wavFile;
-            fileInfo.textContent = `Recorded: ${wavFile.name} (${formatFileSize(wavFile.size)})`;
-            processBtn.disabled = false;
-            
-            // Auto-transcribe
-            await handleTranscribe();
-            
-        } catch (error) {
-            console.error('Error processing recorded audio:', error);
-            alert('Error processing recorded audio. Please try again.');
+            promptText.textContent = "Loading prompts...";
+            const response = await fetch('/api/prompts');
+            const data = await response.json();
+            if (data.prompts) {
+                prompts = data.prompts;
+                totalPromptsSpan.textContent = prompts.length;
+                loadPrompt(0);
+            }
+        } catch (e) {
+            console.error("Failed to load prompts", e);
+            promptText.textContent = "Error loading prompts.";
         }
+    }
+
+    function loadPrompt(index) {
+        if (index >= prompts.length) {
+            promptText.textContent = "All prompts completed! Thank you!";
+            promptCategory.textContent = "Complete";
+            recordBtn.disabled = true;
+            return;
+        }
+        currentPromptIndex = index;
+        const prompt = prompts[index];
+        promptText.textContent = prompt.text;
+        promptCategory.textContent = prompt.category; // + " (" + prompt.lang_code + ")"
+        currentPromptIndexSpan.textContent = index + 1;
+
+        // Reset UI
+        resetRecordingUI();
+    }
+
+    function resetRecordingUI() {
+        recordingBlob = null;
+        audioChunks = [];
+        audioPlayback.src = "";
+
+        recordBtn.disabled = false;
+        recordBtn.style.display = 'inline-flex';
+        stopBtn.disabled = true;
+        stopBtn.style.display = 'none';
+        playBtn.disabled = true;
+        submitRecordingBtn.disabled = true;
+
+        visualizer.classList.remove('recording');
+        document.querySelector('.recording-status-text').textContent = "Ready to Record";
+    }
+
+    /* --- Model Switching Logic --- */
+
+    async function fetchModels() {
+        try {
+            const response = await fetch('/api/models');
+            const data = await response.json();
+
+            if (data.models) {
+                [modelSelect, longAudioModelSelect].forEach(select => {
+                    if (!select) return;
+                    select.innerHTML = '';
+                    Object.entries(data.models).forEach(([displayName, modelCard]) => {
+                        const option = document.createElement('option');
+                        option.value = modelCard;
+                        option.textContent = displayName;
+                        if (modelCard === data.current_model) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                });
+            }
+        } catch (e) {
+            console.error("Failed to load models", e);
+            [modelSelect, longAudioModelSelect].forEach(select => {
+                if (select) select.innerHTML = '<option disabled>Error loading models</option>';
+            });
+        }
+    }
+
+    async function handleModelSwitch(e) {
+        const selectedModel = e.target.value;
+        const previousModel = e.target.getAttribute('data-prev') || selectedModel; // fallback
+
+        // Confirmation or direct switch? Let's just switch with UI feedback
+        const confirmSwitch = confirm("Switching models will take a few seconds and clear current memory. Continue?");
+        if (!confirmSwitch) {
+            e.target.value = previousModel; // Revert
+            return;
+        }
+
+        // Disable UI
+        document.body.style.cursor = 'wait';
+        modelSelect.disabled = true;
+        processBtn.disabled = true;
+
+        // Store current as previous for next time
+        e.target.setAttribute('data-prev', selectedModel);
+
+        try {
+            const response = await fetch('/api/model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model_card: selectedModel })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`Successfully switched to model: ${selectedModel}`);
+            } else {
+                throw new Error(data.error || "Unknown error switching model");
+            }
+        } catch (error) {
+            alert(`Error switching model: ${error.message}`);
+            // Revert selection if possible, though strict sync with backend might differ
+            // We'll just fetch active model again to be sure
+            fetchModels();
+        } finally {
+            document.body.style.cursor = 'default';
+            modelSelect.disabled = false;
+            if (currentFile) processBtn.disabled = false;
+        }
+    }
+
+    /* --- Mode Switching Logic --- */
+
+    function setCollectionMode(mode) {
+        isCustomMode = (mode === 'custom');
+
+        // Update Buttons
+        if (isCustomMode) {
+            modePresetBtn.classList.remove('active');
+            modeCustomBtn.classList.add('active');
+
+            // UI Changes
+            promptText.style.display = 'none';
+            customPromptInput.style.display = 'block';
+            progressIndicator.style.display = 'none';
+            skipBtn.style.display = 'none';
+            instructionText.innerText = "Type your text, then record.";
+            promptCategory.textContent = "Custom Input";
+
+            // Reset for new custom input
+            resetRecordingUI();
+
+        } else {
+            modePresetBtn.classList.add('active');
+            modeCustomBtn.classList.remove('active');
+
+            // UI Changes
+            promptText.style.display = 'block';
+            customPromptInput.style.display = 'none';
+            progressIndicator.style.display = 'inline-block';
+            skipBtn.style.display = 'inline-block';
+            instructionText.innerText = "Read the prompt below and record your voice.";
+
+            // Reload current preset
+            loadPrompt(currentPromptIndex);
+        }
+    }
+
+    /* --- Contribute Recording Logic --- */
+
+    async function startContributeRecording() {
+        if (isCustomMode && !customPromptInput.value.trim()) {
+            alert("Please type some text first!");
+            return;
+        }
+
+        try {
+            audioStream = await navigator.mediaDevices.getUserMedia({
+                audio: { channelCount: 1, sampleRate: 16000 }
+            });
+            mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                recordingBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                audioPlayback.src = URL.createObjectURL(recordingBlob);
+                playBtn.disabled = false;
+                submitRecordingBtn.disabled = false;
+                visualizer.classList.remove('recording');
+                document.querySelector('.recording-status-text').textContent = "Recording Stopped";
+            };
+            mediaRecorder.start();
+
+            recordBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-flex';
+            stopBtn.disabled = false;
+            visualizer.classList.add('recording');
+            document.querySelector('.recording-status-text').textContent = "Recording...";
+
+            // Disable input while recording
+            if (isCustomMode) customPromptInput.disabled = true;
+
+        } catch (e) {
+            alert("Microphone error: " + e.message);
+        }
+    }
+
+    function stopContributeRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+        if (audioStream) audioStream.getTracks().forEach(t => t.stop());
+        if (isCustomMode) customPromptInput.disabled = false;
+    }
+
+    function playRecording() {
+        if (audioPlayback.src) {
+            audioPlayback.play();
+        }
+    }
+
+    async function submitRecording() {
+        if (!recordingBlob) return;
+
+        let id, text, lang;
+
+        if (isCustomMode) {
+            text = customPromptInput.value.trim();
+            id = "custom_" + Date.now();
+            lang = "ben_Beng"; // Default to Bangla for custom, or could add selector
+            if (!text) return alert("Text required!");
+            customPromptInput.value = ""; // Clear after submit
+        } else {
+            const prompt = prompts[currentPromptIndex];
+            text = prompt.text;
+            id = prompt.id;
+            lang = prompt.lang_code;
+        }
+
+        const formData = new FormData();
+        formData.append("audio", recordingBlob, "recording.webm");
+        formData.append("prompt_id", id);
+        formData.append("transcript", text);
+        formData.append("lang_code", lang);
+
+        submitRecordingBtn.disabled = true;
+        submitRecordingBtn.textContent = "Submitting...";
+
+        try {
+            const response = await fetch('/api/dataset/submit', { method: 'POST', body: formData });
+            const result = await response.json();
+
+            if (result.success) {
+                contributionMessage.textContent = "Saved successfully!";
+                contributionMessage.className = "contribution-message success";
+                addToContributionList(text, lang);
+
+                // Only advance if in preset mode
+                if (!isCustomMode) {
+                    setTimeout(() => {
+                        loadPrompt(currentPromptIndex + 1);
+                    }, 1000);
+                } else {
+                    resetRecordingUI(); // Just reset for next custom input
+                }
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (e) {
+            contributionMessage.textContent = "Error: " + e.message;
+            contributionMessage.className = "contribution-message error";
+        } finally {
+            submitRecordingBtn.disabled = false;
+            submitRecordingBtn.textContent = "Submit & Next";
+        }
+    }
+
+    function skipPrompt() {
+        loadPrompt(currentPromptIndex + 1);
+    }
+
+    function addToContributionList(text, lang) {
+        const div = document.createElement('div');
+        div.className = "history-item";
+        div.style.padding = "1rem";
+        div.innerHTML = `<div class="history-item-text">✅ ${text} <small>(${lang})</small></div>`;
+        contributionList.prepend(div);
+
+        const emptyState = contributionList.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
     }
 
     // Convert AudioBuffer to WAV format
@@ -504,20 +967,203 @@ document.addEventListener('DOMContentLoaded', function() {
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
-        
+
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             handleFile(files[0]);
         }
     });
 
+    /* --- Transcription Recording Logic --- */
+
+    async function startTranscribeRecording() {
+        try {
+            audioStream = await navigator.mediaDevices.getUserMedia({
+                audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+            });
+
+            // Visualizer setup
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            const source = audioContext.createMediaStreamSource(audioStream);
+            source.connect(analyser);
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                await processTranscribeRecording();
+            };
+
+            mediaRecorder.start(100);
+            recordingStartTime = Date.now();
+
+            // UI Updates
+            transcribeRecordBtn.style.display = 'none';
+            transcribeStopBtn.style.display = 'inline-flex';
+            transcribeStopBtn.disabled = false;
+            transcribeRecordingStatus.style.display = 'flex';
+            transcribeAudioVisualizer.style.display = 'block';
+
+            startTranscribeTimer();
+            visualizeTranscribeAudio();
+
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            alert('Could not access microphone.');
+        }
+    }
+
+    function stopTranscribeRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            // Don't nullify yet if we want to reuse? No, better get fresh stream next time.
+        }
+        stopTranscribeTimer();
+        stopTranscribeVisualization();
+
+        // UI Reset
+        transcribeRecordBtn.style.display = 'inline-flex';
+        transcribeStopBtn.style.display = 'none';
+        transcribeRecordingStatus.style.display = 'none';
+        transcribeAudioVisualizer.style.display = 'none';
+    }
+
+    function startTranscribeTimer() {
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            transcribeRecordingTimer.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            if (elapsed >= 40) stopTranscribeRecording();
+        }, 100);
+    }
+
+    function stopTranscribeTimer() {
+        clearInterval(timerInterval);
+    }
+
+    function visualizeTranscribeAudio() {
+        if (!analyser || !transcribeWaveformCanvas) return;
+        const ctx = transcribeWaveformCanvas.getContext('2d');
+        const width = transcribeWaveformCanvas.width;
+        const height = transcribeWaveformCanvas.height;
+
+        function draw() {
+            if (!analyser) return;
+            animationFrameId = requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArray);
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, width, height);
+
+            const barWidth = width / dataArray.length * 2.5;
+            let x = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                const barHeight = (dataArray[i] / 255) * height * 0.8;
+                const gradient = ctx.createLinearGradient(0, height, 0, height - barHeight);
+                gradient.addColorStop(0, '#6366f1');
+                gradient.addColorStop(1, '#8b5cf6');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x, height - barHeight, barWidth - 2, barHeight);
+                x += barWidth;
+            }
+        }
+        draw();
+    }
+
+    function stopTranscribeVisualization() {
+        cancelAnimationFrame(animationFrameId);
+        if (audioContext) audioContext.close();
+    }
+
+    async function processTranscribeRecording() {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        try {
+            const decodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const ab = await audioBlob.arrayBuffer();
+            const audioBuffer = await decodeCtx.decodeAudioData(ab);
+            const wavBlob = audioBufferToWav(audioBuffer);
+            await decodeCtx.close();
+
+            const wavFile = new File([wavBlob], `recording_${Date.now()}.wav`, { type: 'audio/wav' });
+            currentFile = wavFile;
+            fileInfo.textContent = `Recorded: ${wavFile.name} (${formatFileSize(wavFile.size)})`;
+            processBtn.disabled = false;
+
+            // Auto-transcribe
+            await handleTranscribe();
+        } catch (e) {
+            console.error(e);
+            alert("Error processing recording.");
+        }
+    }
+
+    /* --- Contribute Recording Logic (Simplified) --- */
+
+    async function startContributeRecording() {
+        try {
+            audioStream = await navigator.mediaDevices.getUserMedia({
+                audio: { channelCount: 1, sampleRate: 16000 }
+            });
+            mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                recordingBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                audioPlayback.src = URL.createObjectURL(recordingBlob);
+                playBtn.disabled = false;
+                submitRecordingBtn.disabled = false;
+                visualizer.classList.remove('recording');
+                document.querySelector('.recording-status-text').textContent = "Recording Stopped";
+            };
+            mediaRecorder.start();
+
+            recordBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-flex';
+            stopBtn.disabled = false;
+            visualizer.classList.add('recording');
+            document.querySelector('.recording-status-text').textContent = "Recording...";
+        } catch (e) {
+            alert("Microphone error: " + e.message);
+        }
+    }
+
+    function stopContributeRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+        if (audioStream) audioStream.getTracks().forEach(t => t.stop());
+    }
+
+    // Event Listeners
     processBtn.addEventListener('click', handleTranscribe);
     downloadBtn.addEventListener('click', handleDownload);
     refreshHistoryBtn.addEventListener('click', loadHistory);
-    recordBtn.addEventListener('click', startRecording);
-    stopBtn.addEventListener('click', stopRecording);
+
+    // Transcribe Recording Events
+    if (transcribeRecordBtn) {
+        transcribeRecordBtn.addEventListener('click', startTranscribeRecording);
+        transcribeStopBtn.addEventListener('click', stopTranscribeRecording);
+    }
+
+    // Contribute Recording Events
+    recordBtn.addEventListener('click', startContributeRecording);
+    stopBtn.addEventListener('click', stopContributeRecording);
+    playBtn.addEventListener('click', playRecording);
+    submitRecordingBtn.addEventListener('click', submitRecording);
+    skipBtn.addEventListener('click', skipPrompt);
+
+    modePresetBtn.addEventListener('click', () => setCollectionMode('preset'));
+    modeCustomBtn.addEventListener('click', () => setCollectionMode('custom'));
 
     // Initialize
+    fetchModels();
     loadHistory();
 });
-

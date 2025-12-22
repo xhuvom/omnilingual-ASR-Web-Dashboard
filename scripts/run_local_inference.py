@@ -116,7 +116,7 @@ def convert_audio_to_wav(input_file: Path, output_file: Optional[Path] = None) -
     try:
         subprocess.run(
             [
-                "ffmpeg",
+                "/usr/bin/ffmpeg",
                 "-i", str(input_file),
                 "-ar", "16000",  # Resample to 16kHz (model requirement)
                 "-ac", "1",      # Convert to mono

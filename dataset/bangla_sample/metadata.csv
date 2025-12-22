@@ -1,0 +1,4 @@
+audio_path,sentence
+audio/sample1.wav,"আসসালামু আলাইকুম, আমি আনিস কথা বলছি।"
+audio/sample2.wav,"বাচ্চারা এখন বাংলা এবং ইংরেজি মিশিয়ে কথা বলে।"
+audio/sample3.wav,"Today we are going to talk about the talk show and how ASR works for Bangla."

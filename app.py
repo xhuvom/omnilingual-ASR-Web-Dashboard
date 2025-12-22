@@ -11,6 +11,12 @@ import json
 import os
 import subprocess
 import tempfile
+import sys
+from pathlib import Path
+
+# Add src to path so omnilingual_asr can be imported
+sys.path.append(str(Path(__file__).parent / "src"))
+
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -19,6 +25,121 @@ from flask import Flask, jsonify, render_template, request, send_file
 from werkzeug.utils import secure_filename
 
 from omnilingual_asr.models.inference.pipeline import ASRInferencePipeline
+import random
+import uuid
+import torch
+import shutil
+import glob
+
+# --- Dataset Collection Configuration ---
+DATASET_DIR = Path("dataset")
+RAW_AUDIO_DIR = DATASET_DIR / "raw_audio"
+METADATA_FILE = DATASET_DIR / "metadata.jsonl"
+
+# Ensure dataset directories exist
+RAW_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+
+class DatasetManager:
+    """Manager for the interactive data collection dataset."""
+    
+    PROMPTS = [
+        # Bangla Sentences (General conversation, news finish)
+        {"id": "bn_01", "text": "আপনার সাথে দেখা করে খুব ভালো লাগলো।", "category": "Bangla", "lang_code": "ben_Beng"},
+        {"id": "bn_02", "text": "আজকের আবহাওয়া বেশ চমৎকার, তাই না?", "category": "Bangla", "lang_code": "ben_Beng"},
+        {"id": "bn_03", "text": "গতকাল আমি বাজারে গিয়েছিলাম কিছু ফল কিনতে।", "category": "Bangla", "lang_code": "ben_Beng"},
+        {"id": "bn_04", "text": "বাংলাদেশের প্রাকৃতিক সৌন্দর্য আমাকে মুগ্ধ করে।", "category": "Bangla", "lang_code": "ben_Beng"},
+        {"id": "bn_05", "text": "আপনি কি চা খাবেন নাকি কফি?", "category": "Bangla", "lang_code": "ben_Beng"},
+        {"id": "bn_06", "text": "আগামীকাল থেকে পরীক্ষা শুরু হবে।", "category": "Bangla", "lang_code": "ben_Beng"},
+        {"id": "bn_07", "text": "বইটি পড়া শেষ করে আমাকে ফেরত দেবেন।", "category": "Bangla", "lang_code": "ben_Beng"},
+        
+        # English Sentences
+        {"id": "en_01", "text": "The quick brown fox jumps over the lazy dog.", "category": "English", "lang_code": "eng_Latn"},
+        {"id": "en_02", "text": "I would like to order a large pizza with extra cheese.", "category": "English", "lang_code": "eng_Latn"},
+        {"id": "en_03", "text": "Can you please tell me the way to the nearest station?", "category": "English", "lang_code": "eng_Latn"},
+        {"id": "en_04", "text": "Technology is changing the way we live and work.", "category": "English", "lang_code": "eng_Latn"},
+        {"id": "en_05", "text": "Please make sure to save your work before closing.", "category": "English", "lang_code": "eng_Latn"},
+        
+        # Mixed / Banglish
+        {"id": "mix_01", "text": "আজকের meeting টা খুব important ছিল।", "category": "Mixed", "lang_code": "ben_Beng"},
+        {"id": "mix_02", "text": "আমি কালকে office যাবো না, work from home করবো।", "category": "Mixed", "lang_code": "ben_Beng"},
+        {"id": "mix_03", "text": "প্লিজ file টা আমাকে email করে দিয়েন।", "category": "Mixed", "lang_code": "ben_Beng"},
+        {"id": "mix_04", "text": "Mobile টা charge এ দিয়ে আসো।", "category": "Mixed", "lang_code": "ben_Beng"},
+        {"id": "mix_05", "text": "তোমার presentation টা really awesome হয়েছে।", "category": "Mixed", "lang_code": "ben_Beng"},
+        
+        # Custom User Requested (Complex/Mixed)
+        {"id": "usr_01", "text": "Hello Sir, আসসালামু আলাইকুম। আপনাকে স্বাগতম। অনুগ্রহ করে আপনার phone number টি বলুন।", "category": "Mixed", "lang_code": "ben_Beng"},
+        {"id": "usr_02", "text": "আপনার phone number হলো 01672575481", "category": "Numeric", "lang_code": "ben_Beng"},
+        {"id": "usr_03", "text": "আপনার email address টি হলো abushuvom@gmail.com", "category": "Mixed", "lang_code": "ben_Beng"},
+        {"id": "usr_04", "text": "আপনার registration সম্পন্ন হয়েছে , ধন্যবাদ", "category": "Mixed", "lang_code": "ben_Beng"},
+        
+        # Numeric / Dates
+        {"id": "num_01", "text": "আমার ফোন নম্বর হল ০১৭-১২৩৪৫৬৭৮।", "category": "Numeric", "lang_code": "ben_Beng"},
+        {"id": "num_02", "text": "আজকের তারিখ ১২ই ডিসেম্বর, ২০২৫।", "category": "Numeric", "lang_code": "ben_Beng"},
+        {"id": "num_03", "text": "দাম মাত্র ৫০০ টাকা।", "category": "Numeric", "lang_code": "ben_Beng"},
+        {"id": "num_04", "text": "The total cost is 4500 BDT.", "category": "Numeric", "lang_code": "ben_Beng"},
+        {"id": "num_05", "text": "১৯৭১ সালে বাংলাদেশ স্বাধীন হয়।", "category": "Numeric", "lang_code": "ben_Beng"},
+    ]
+
+    @staticmethod
+    def get_prompts():
+        """Return the list of prompts."""
+        return DatasetManager.PROMPTS
+
+    @staticmethod
+    def save_recording(audio_file, prompt_id: str, transcript: str, lang_code: str):
+        """Save the recorded audio and update metadata."""
+        if not audio_file:
+            raise ValueError("No audio file provided")
+        
+        prompt = next((p for p in DatasetManager.PROMPTS if p["id"] == prompt_id), None)
+        if not prompt: 
+            # Allow custom prompts if we ever need them, but warn or default
+             category = "Custom"
+        else:
+             category = prompt["category"]
+
+        # Generate unique filename
+        filename = f"{prompt_id}_{uuid.uuid4().hex[:8]}.wav"
+        save_path = RAW_AUDIO_DIR / filename
+        
+        # Save Audio (assuming it comes as blob/wav from frontend)
+        # Note: Frontend sending webm/wav blob. ffmpeg might be needed if format issues arise.
+        # For simplicity, we save what we get, but best to normalize to wav 16k mono later or now.
+        # Let's try to save directly first.
+        audio_file.save(str(save_path))
+        
+        # Convert to proper WAV 16kHz Mono for training consistency immediately
+        try:
+             # Temp renaming for conversion source
+            temp_src = save_path.with_suffix(".tmp")
+            save_path.rename(temp_src)
+            convert_audio_to_wav(temp_src, save_path)
+            temp_src.unlink()
+        except Exception as e:
+            print(f"Warning: Audio conversion failed, keeping original: {e}")
+            # If conversion fails, we might still have the renamed tmp file?
+            # convert_audio_to_wav handles clean up? 
+            # Actually convert_audio_to_wav takes input and output.
+            # If it failed, we might have lost the file if we aren't careful.
+            # Let's rely on standard save first.
+            if temp_src.exists():
+                temp_src.rename(save_path) # Restore
+
+        # Append to metadata.jsonl
+        metadata_entry = {
+            "file_name": str(filename),
+            "text": transcript,
+            "lang_code": lang_code,
+            "category": category,
+            "prompt_id": prompt_id,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        with open(METADATA_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(metadata_entry, ensure_ascii=False) + "\n")
+            
+        return metadata_entry
+
 
 # Supported audio formats by libsndfile (used by fairseq2)
 SUPPORTED_FORMATS = {".wav", ".flac", ".ogg", ".au", ".aiff", ".mp3"}
@@ -35,8 +156,16 @@ app.config["UPLOAD_FOLDER"].mkdir(parents=True, exist_ok=True)
 _pipeline: Optional[ASRInferencePipeline] = None
 DEFAULT_MODEL_CARD = "omniASR_LLM_1B_local"
 
+# Example: { "Display Name": "model_card_name" }
+AVAILABLE_MODELS = {
+    "LLM 1B (Default)": "omniASR_LLM_1B_local",
+    "CTC 1B": "omniASR_CTC_1B_local",
+    "LLM 3B": "omniASR_LLM_3B_local"
+    }
+
 # Common language codes for the dropdown
 COMMON_LANGUAGES = [
+    ("auto", "Auto Detect (Identify Language)"),
     ("ben_Beng", "Bengali (বাংলা)"),
     ("eng_Latn", "English"),
     ("hin_Deva", "Hindi (हिन्दी)"),
@@ -69,18 +198,35 @@ def get_pipeline() -> ASRInferencePipeline:
 
 
 def initialize_pipeline(model_card: str = DEFAULT_MODEL_CARD) -> None:
-    """Initialize the pipeline at startup."""
+    """Initialize the pipeline at startup or switch models."""
     global _pipeline, DEFAULT_MODEL_CARD
-    if _pipeline is None:
-        DEFAULT_MODEL_CARD = model_card
-        print(f"Loading pipeline with model card '{model_card}'...")
-        print("This may take a few moments...")
-        try:
-            _pipeline = ASRInferencePipeline(model_card=model_card)
-            print("✓ Pipeline loaded successfully!")
-        except Exception as e:
-            print(f"✗ Failed to load pipeline: {e}")
-            raise
+    
+    # If the requested model is already loaded, do nothing
+    if _pipeline is not None and DEFAULT_MODEL_CARD == model_card:
+        print(f"Pipeline with model '{model_card}' is already loaded.")
+        return
+
+    print(f"Loading pipeline with model card '{model_card}'...")
+    print("This may take a few moments...")
+    try:
+        # Force garbage collection if replacing an existing pipeline
+        if _pipeline is not None:
+            del _pipeline
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                
+        _pipeline = ASRInferencePipeline(model_card=model_card)
+        DEFAULT_MODEL_CARD = model_card # Update current model card
+        print("✓ Pipeline loaded successfully!")
+    except Exception as e:
+        print(f"✗ Failed to load pipeline: {e}")
+        # If we failed to load the new one, we might be in a bad state (no pipeline).
+        # Depending on requirements, we could try to reload the old one or just raise.
+        # For now, we raise, leaving _pipeline as None (or deleted).
+        _pipeline = None 
+        raise
 
 
 def load_history() -> List[dict]:
@@ -141,7 +287,7 @@ def convert_audio_to_wav(input_file: Path, output_file: Optional[Path] = None) -
     try:
         subprocess.run(
             [
-                "ffmpeg",
+                "/usr/bin/ffmpeg",
                 "-i", str(input_file),
                 "-ar", "16000",  # Resample to 16kHz (model requirement)
                 "-ac", "1",      # Convert to mono
@@ -164,6 +310,129 @@ def convert_audio_to_wav(input_file: Path, output_file: Optional[Path] = None) -
         )
 
 
+def split_audio_file(input_file: Path, chunk_duration: int = 40) -> List[Path]:
+    """
+    Split audio file into chunks of specified duration.
+    
+    Args:
+        input_file: Path to input audio file
+        chunk_duration: Duration of each chunk in seconds (default: 40)
+        
+    Returns:
+        List of paths to generated chunk files
+    """
+    output_pattern = input_file.parent / f"{input_file.stem}_chunk_%03d.wav"
+    
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-i", str(input_file),
+                "-f", "segment",
+                "-segment_time", str(chunk_duration),
+                "-c", "copy",
+                str(output_pattern)
+            ],
+            check=True,
+            capture_output=True
+        )
+        
+        # Collect generated chunks
+        chunks = sorted(list(input_file.parent.glob(f"{input_file.stem}_chunk_*.wav")))
+        return chunks
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to split audio: {e.stderr.decode() if e.stderr else str(e)}")
+
+
+@app.route("/api/transcribe_long", methods=["POST"])
+def transcribe_long():
+    """Handle long audio file upload and chunked transcription."""
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files["file"]
+    lang_code = request.form.get("lang_code", "ben_Beng")
+    
+    # Handle Auto Detect
+    if lang_code == "auto":
+        lang_code = None
+
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+
+    # Save uploaded file temporarily
+    filename = secure_filename(file.filename)
+    original_ext = Path(filename).suffix.lower()
+    temp_dir = Path(tempfile.mkdtemp())
+    temp_path = temp_dir / f"{Path(filename).stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{original_ext}"
+    
+    try:
+        file.save(str(temp_path))
+        
+        # Convert to WAV if needed (for consistent splitting)
+        process_path = temp_path
+        if original_ext not in SUPPORTED_FORMATS or original_ext != ".wav":
+             # Always convert to 16k mono wav for consistency before splitting
+             wav_path = temp_path.with_suffix(".wav")
+             convert_audio_to_wav(temp_path, wav_path)
+             process_path = wav_path
+
+        # Split into chunks
+        chunks = split_audio_file(process_path, chunk_duration=40)
+        
+        if not chunks:
+            return jsonify({"error": "Failed to create audio chunks"}), 500
+
+        pipeline = get_pipeline()
+        results = []
+        
+        # Transcribe each chunk
+        for i, chunk in enumerate(chunks):
+            try:
+                chunk_path = str(chunk.absolute())
+                print(f"Processing chunk {i+1}/{len(chunks)}: {chunk_path}")
+                if not chunk.exists():
+                    print(f"Error: Chunk file not found: {chunk_path}")
+                    continue
+                    
+                transcriptions = pipeline.transcribe(
+                    [chunk_path], lang=[lang_code], batch_size=1
+                )
+                if transcriptions:
+                    print(f"  Result: {transcriptions[0][:30]}...")
+                    results.append({
+                        "segment": i + 1,
+                        "filename": chunk.name,
+                        "text": transcriptions[0]
+                    })
+            except Exception as e:
+                print(f"Error transcribing chunk {chunk.name}: {e}")
+                results.append({
+                    "segment": i + 1,
+                    "filename": chunk.name,
+                    "text": f"[Error: {str(e)}]"
+                })
+
+        return jsonify({
+            "success": True, 
+            "results": results,
+            "filename": filename,
+            "lang_code": lang_code
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Long audio processing failed: {str(e)}"}), 500
+        
+    finally:
+        # Cleanup temp directory
+        try:
+            shutil.rmtree(str(temp_dir))
+        except Exception as e:
+            print(f"Cleanup warning: {e}")
+
+
 @app.route("/")
 def index():
     """Render the main dashboard page."""
@@ -178,6 +447,10 @@ def transcribe():
 
     file = request.files["file"]
     lang_code = request.form.get("lang_code", "ben_Beng")
+
+    # Handle Auto Detect
+    if lang_code == "auto":
+        lang_code = None
 
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
@@ -298,14 +571,71 @@ def get_languages():
     return jsonify({"languages": [{"code": code, "name": name} for code, name in COMMON_LANGUAGES]})
 
 
+@app.route("/api/prompts", methods=["GET"])
+def get_prompts():
+    """Get the list of data collection prompts."""
+    return jsonify({"prompts": DatasetManager.get_prompts()})
+
+
+@app.route("/api/dataset/submit", methods=["POST"])
+def submit_dataset_entry():
+    """Receive a recorded audio and its transcript."""
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
+    
+    audio_file = request.files["audio"]
+    prompt_id = request.form.get("prompt_id")
+    transcript = request.form.get("transcript")
+    lang_code = request.form.get("lang_code", "ben_Beng")
+
+    if not prompt_id or not transcript:
+        return jsonify({"error": "Missing prompt_id or transcript"}), 400
+
+    try:
+        entry = DatasetManager.save_recording(audio_file, prompt_id, transcript, lang_code)
+        return jsonify({"success": True, "entry": entry})
+    except Exception as e:
+        print(f"Dataset submission error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/models", methods=["GET"])
+def get_models():
+    """Get list of available models and the current active model."""
+    return jsonify({
+        "models": AVAILABLE_MODELS,
+        "current_model": DEFAULT_MODEL_CARD
+    })
+
+
+@app.route("/api/model", methods=["POST"])
+def switch_model():
+    """Switch the active ASR model."""
+    data = request.get_json()
+    if not data or "model_card" not in data:
+        return jsonify({"error": "Missing model_card"}), 400
+    
+    model_card = data["model_card"]
+    
+    # Validate model card
+    if model_card not in AVAILABLE_MODELS.values():
+        return jsonify({"error": "Invalid model card"}), 400
+
+    try:
+        initialize_pipeline(model_card)
+        return jsonify({"success": True, "current_model": DEFAULT_MODEL_CARD})
+    except Exception as e:
+        return jsonify({"error": f"Failed to switch model: {str(e)}"}), 500
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Run Omnilingual ASR web dashboard")
     parser.add_argument(
         "--host",
-        default="127.0.0.1",
-        help="Host to bind to (default: 127.0.0.1)",
+        default="192.168.88.252",
+        help="Host to bind to (default: 192.168.88.252)",
     )
     parser.add_argument(
         "--port",

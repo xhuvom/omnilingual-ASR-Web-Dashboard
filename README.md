@@ -3,6 +3,8 @@
   <p><i>Photographs captured during corpus creation efforts in Pakistan and Liberia.</i></p>
 </div>
 
+./asr_venv/bin/python app.py --help && ./asr_venv/bin/python app.py --port 5001 --debug
+
 # Omnilingual ASR: Open-Source Multilingual Speech Recognition for 1600+ Languages
 
 Omnilingual ASR is an open-source speech recognition system supporting over 1,600 languages — including hundreds never previously covered by any ASR technology. Designed for broad accessibility, it enables new languages to be added with just a few paired examples without requiring specialized expertise or large datasets. By combining scalable zero-shot learning with a flexible model family, Omnilingual ASR aims to make speech technology more inclusive and adaptable for communities and researchers worldwide.

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Omnilingual ASR Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -14,95 +16,246 @@
         </header>
 
         <main>
-            <!-- Microphone Recording Section -->
-            <section class="recording-section">
-                <h2>🎙️ Record from Microphone</h2>
-                <div class="recording-controls">
-                    <button class="btn btn-record" id="recordBtn">
-                        <span class="record-icon">🎤</span>
-                        <span class="record-text">Start Recording</span>
-                    </button>
-                    <button class="btn btn-stop" id="stopBtn" disabled style="display: none;">
-                        <span class="stop-icon">⏹️</span>
-                        <span class="stop-text">Stop Recording</span>
-                    </button>
-                    <div class="recording-status" id="recordingStatus" style="display: none;">
-                        <div class="recording-indicator">
-                            <span class="pulse-dot"></span>
-                            <span id="recordingTimer">00:00</span>
+            <!-- Navigation -->
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="transcribe">Transcribe</button>
+                <button class="nav-tab" data-tab="long_audio">Long Audio</button>
+                <button class="nav-tab" data-tab="contribute">Contribute Data</button>
+            </div>
+
+            <!-- Transcribe Section (Existing) -->
+            <div id="transcribeTab" class="tab-content active">
+                <section class="upload-section">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-content">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <h2>Drag & Drop Audio File</h2>
+                            <p>or</p>
+                            <button class="btn btn-primary" id="uploadBtn">Choose File</button>
+                            <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+                            <p class="file-info" id="fileInfo"></p>
                         </div>
-                        <div class="recording-warning" id="recordingWarning"></div>
                     </div>
-                </div>
-                <div class="audio-visualizer" id="audioVisualizer" style="display: none;">
-                    <canvas id="waveformCanvas" width="400" height="80"></canvas>
-                </div>
-            </section>
 
-            <!-- Upload Section -->
-            <section class="upload-section">
-                <h2>📁 Or Upload Audio File</h2>
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-content">
-                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
-                        <h3>Drag & Drop Audio File</h3>
-                        <p>or</p>
-                        <button class="btn btn-primary" id="uploadBtn">Choose File</button>
-                        <input type="file" id="fileInput" accept="audio/*" style="display: none;">
-                        <p class="file-info" id="fileInfo"></p>
+
+                    <!-- Model Selection -->
+                    <div class="model-section" style="margin-bottom: 1rem;">
+                        <label for="modelSelect">Model:</label>
+                        <select id="modelSelect" class="model-select"
+                            style="padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc; width: 100%;">
+                            <option value="" disabled selected>Loading models...</option>
+                        </select>
                     </div>
-                </div>
 
-                <!-- Language Selection -->
-                <div class="language-section">
-                    <label for="langSelect">Language:</label>
-                    <select id="langSelect" class="lang-select">
-                        {% for code, name in languages %}
-                        <option value="{{ code }}" {% if code == 'ben_Beng' %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Process Button -->
-                <button class="btn btn-process" id="processBtn" disabled>
-                    <span class="btn-text">Transcribe</span>
-                    <span class="btn-spinner" style="display: none;">⏳ Processing...</span>
-                </button>
-            </section>
-
-            <!-- Results Section -->
-            <section class="results-section" id="resultsSection" style="display: none;">
-                <div class="result-header">
-                    <h2>Transcription Result</h2>
-                    <button class="btn btn-secondary" id="downloadBtn">Download as Text</button>
-                </div>
-                <div class="result-content">
-                    <div class="result-meta">
-                        <span id="resultFilename"></span>
-                        <span id="resultLang"></span>
+                    <!-- Language Selection -->
+                    <div class="language-section">
+                        <label for="langSelect">Language:</label>
+                        <select id="langSelect" class="lang-select">
+                            {% for code, name in languages %}
+                            <option value="{{ code }}" {% if code=='ben_Beng' %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="result-text" id="resultText"></div>
-                </div>
-            </section>
 
-            <!-- History Section -->
-            <section class="history-section">
-                <div class="history-header">
-                    <h2>Recent History</h2>
-                    <button class="btn btn-link" id="refreshHistoryBtn">Refresh</button>
-                </div>
-                <div class="history-list" id="historyList">
-                    <p class="empty-state">No history yet. Upload and transcribe an audio file to get started!</p>
-                </div>
-            </section>
+                    <!-- Process Button -->
+                    <button class="btn btn-process" id="processBtn" disabled>
+                        <span class="btn-text">Transcribe File</span>
+                        <span class="btn-spinner" style="display: none;">⏳ Processing...</span>
+                    </button>
+                </section>
+
+                <hr style="margin: 2rem 0; border: 0; border-top: 1px solid rgba(0,0,0,0.1);">
+
+                <!-- Microphone Recording Section (Restored) -->
+                <section class="recording-section">
+                    <h2>🎙️ Record from Microphone</h2>
+                    <div class="recording-controls">
+                        <button class="btn btn-record" id="transcribeRecordBtn">
+                            <span class="record-icon">🎤</span>
+                            <span class="record-text">Start Recording</span>
+                        </button>
+                        <button class="btn btn-stop" id="transcribeStopBtn" disabled style="display: none;">
+                            <span class="stop-icon">⏹️</span>
+                            <span class="stop-text">Stop Recording</span>
+                        </button>
+                        <div class="recording-status" id="transcribeRecordingStatus" style="display: none;">
+                            <div class="recording-indicator">
+                                <span class="pulse-dot"></span>
+                                <span id="transcribeRecordingTimer">00:00</span>
+                            </div>
+                            <div class="recording-warning" id="transcribeRecordingWarning"></div>
+                        </div>
+                    </div>
+                    <div class="audio-visualizer" id="transcribeAudioVisualizer" style="display: none;">
+                        <canvas id="transcribeWaveformCanvas" width="400" height="80"></canvas>
+                    </div>
+                </section>
+
+                <!-- Results Section -->
+                <section class="results-section" id="resultsSection" style="display: none;">
+                    <div class="result-header">
+                        <h2>Transcription Result</h2>
+                        <button class="btn btn-secondary" id="downloadBtn">Download as Text</button>
+                    </div>
+                    <div class="result-content">
+                        <div class="result-meta">
+                            <span id="resultFilename"></span>
+                            <span id="resultLang"></span>
+                        </div>
+                        <div class="result-text" id="resultText"></div>
+                    </div>
+                </section>
+
+                <!-- History Section -->
+                <section class="history-section">
+                    <div class="history-header">
+                        <h2>Recent History</h2>
+                        <button class="btn btn-link" id="refreshHistoryBtn">Refresh</button>
+                    </div>
+                    <div class="history-list" id="historyList">
+                        <p class="empty-state">No history yet. Upload and transcribe an audio file to get started!</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Long Audio Section (New) -->
+            <div id="longAudioTab" class="tab-content">
+                <section class="upload-section">
+                    <h2>Transcrive Long Audio Files</h2>
+                    <p>Files will be split into 40s segments and transcribed individually.</p>
+
+                    <div class="upload-area" id="longAudioUploadArea">
+                        <div class="upload-content">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <h2>Drag & Drop Long Audio File</h2>
+                            <p>or</p>
+                            <button class="btn btn-primary" id="longAudioUploadBtn">Choose File</button>
+                            <input type="file" id="longAudioFileInput" accept="audio/*" style="display: none;">
+                            <p class="file-info" id="longAudioFileInfo"></p>
+                        </div>
+                    </div>
+
+                    <!-- Model Selection (Long Audio) -->
+                    <div class="model-section" style="margin-bottom: 1rem;">
+                        <label for="longAudioModelSelect">Model:</label>
+                        <select id="longAudioModelSelect" class="model-select"
+                            style="padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc; width: 100%;">
+                            <option value="" disabled selected>Loading models...</option>
+                        </select>
+                    </div>
+
+                    <!-- Language Selection (Long Audio) -->
+                    <div class="language-section">
+                        <label for="longAudioLangSelect">Language:</label>
+                        <select id="longAudioLangSelect" class="lang-select">
+                            {% for code, name in languages %}
+                            <option value="{{ code }}" {% if code=='ben_Beng' %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Process Button (Long Audio) -->
+                    <button class="btn btn-process" id="longAudioProcessBtn" disabled>
+                        <span class="btn-text">Transcribe Long Audio</span>
+                        <span class="btn-spinner" style="display: none;">⏳ Processing Segments...</span>
+                    </button>
+                </section>
+
+                <!-- Long Audio Results -->
+                <section class="results-section" id="longAudioResultsSection" style="display: none;">
+                    <div class="result-header">
+                        <h2>Segmented Transcription Result</h2>
+                        <button class="btn btn-secondary" id="longAudioDownloadBtn">Download Full Text</button>
+                    </div>
+                    <div class="result-content">
+                        <div class="result-meta">
+                            <span id="longAudioResultFilename"></span>
+                            <span id="longAudioResultLang"></span>
+                        </div>
+                        <div id="longAudioResultsTable">
+                            <!-- Segments will be injected here -->
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Data Collection Section (New) -->
+            <div id="contributeTab" class="tab-content">
+                <section class="data-collection-section">
+                    <div class="collection-header">
+                        <h2>Help Us Collect Data</h2>
+                        <div class="mode-toggle">
+                            <button class="btn btn-sm active" id="modePresetBtn">Presets</button>
+                            <button class="btn btn-sm" id="modeCustomBtn">Custom Input</button>
+                        </div>
+                        <p id="instructionText">Read the prompt below and record your voice.</p>
+                        <div class="progress-indicator" id="progressIndicator">
+                            Prompt <span id="currentPromptIndex">0</span> / <span id="totalPrompts">0</span>
+                        </div>
+                    </div>
+
+                    <div class="prompt-card">
+                        <span class="prompt-category" id="promptCategory">Category</span>
+                        <!-- Preset Text Display -->
+                        <h3 class="prompt-text" id="promptText">Loading prompts...</h3>
+                        <!-- Custom Input Field (Hidden by default) -->
+                        <textarea class="prompt-input" id="customPromptInput"
+                            placeholder="Type your text here to record..." style="display: none;"></textarea>
+                    </div>
+
+                    <div class="recording-area">
+                        <div class="visualizer" id="visualizer">
+                            <div class="pulse-ring"></div>
+                            <div class="recording-status-text">Ready to Record</div>
+                        </div>
+
+                        <div class="controls">
+                            <button class="btn btn-record" id="recordBtn">
+                                <span class="icon">🎙️</span> Record
+                            </button>
+                            <button class="btn btn-stop" id="stopBtn" disabled>
+                                <span class="icon">⏹️</span> Stop
+                            </button>
+                            <button class="btn btn-play" id="playBtn" disabled>
+                                <span class="icon">▶️</span> Play
+                            </button>
+                        </div>
+
+                        <!-- Hidden audio element for playback -->
+                        <audio id="audioPlayback" hidden></audio>
+                    </div>
+
+                    <div class="submission-area">
+                        <button class="btn btn-primary" id="submitRecordingBtn" disabled>Submit & Next</button>
+                        <button class="btn btn-link" id="skipBtn">Skip this prompt</button>
+                    </div>
+
+                    <div id="contributionMessage" class="contribution-message"></div>
+                </section>
+
+                <section class="history-section">
+                    <div class="history-header">
+                        <h2>My Contributions</h2>
+                    </div>
+                    <div class="history-list" id="contributionList">
+                        <p class="empty-state">No contributions yet.</p>
+                    </div>
+                </section>
+            </div>
         </main>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
-</html>
 
+</html>
