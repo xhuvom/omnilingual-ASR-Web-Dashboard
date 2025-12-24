@@ -23,6 +23,13 @@ Omnilingual ASR is a state-of-the-art speech recognition system supporting over 
 
 ## 🚀 Quick Start
 
+### Installation
+For a fresh setup, simply run:
+```bash
+# Optimized for Ubuntu 24.04
+bash setup_env.sh
+```
+
 ### Running the Dashboard
 After installation, you can launch the dashboard using the dedicated virtual environment:
 
@@ -54,6 +61,12 @@ sudo apt install python3.10-venv ffmpeg libsndfile1
 ```
 
 ### 2. Environment Setup
+The recommended way to set up the environment is to use our automated script:
+```bash
+bash setup_env.sh
+```
+
+Alternatively, you can perform the steps manually:
 ```bash
 python3.10 -m venv asr_venv
 ./asr_venv/bin/pip install --upgrade pip
