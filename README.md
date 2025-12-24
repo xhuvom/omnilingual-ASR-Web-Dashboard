@@ -1,40 +1,51 @@
 <div align="center">
-  <img src="./omniASR_header.jpg" alt="Omnilingual ASR Header" width="100%" />
+  <img src="./images/omni.png" alt="Omnilingual ASR Header" width="100%" />
 </div>
 
 # 🎙️ Omnilingual ASR Dashboard
 
-Omnilingual ASR is an open-source speech recognition system supporting over **1,600 languages**. This repository contains a professional web-based dashboard for transcribing audio files, managing transcription history, and contributing to corpus creation.
+Omnilingual ASR is a state-of-the-art speech recognition system supporting over **1,600 languages**. This dashboard provides a professional, user-friendly interface to leverage the power of Meta's Omnilingual ASR models for transcription, dataset collection, and model management.
 
 ---
 
-## 🚀 Quick Start (Running the Dashboard)
+## ✨ Key Features
 
-If you have already performed the installation steps, you can start the dashboard using the dedicated virtual environment:
+- **🚀 Multi-Model Support**: Switch between different model architectures (LLM, CTC, etc.) and sizes (1B, 3B, 7B) on the fly.
+- **🎙️ Live Microphone Transcription**: Record and transcribe audio directly from your browser with real-time visualization.
+- **📄 Long Audio Processing**: Automatically handles large audio files by intelligent chunking, ensuring stable transcription for files of any length.
+- **🌐 Global Language Coverage**: Support for 1,600+ languages with easy search and selection.
+- **💾 Transcription History**: Securely save, review, and download your previous transcriptions.
+- **🤝 Contribution Workflow**: Dedicated "Contribute" tab for data collection, allowing users to record specific prompts to help improve model performance for low-resource languages.
+
+---
+
+## 🚀 Quick Start
+
+### Running the Dashboard
+After installation, you can launch the dashboard using the dedicated virtual environment:
 
 ```bash
 # From the project root
 ./asr_venv/bin/python app.py
 ```
 
-- **URL:** [http://192.168.88.252:5000](http://192.168.88.252:5000)
-- **Host:** Configured for `192.168.88.252` to allow local network access.
+- **URL:** [http://127.0.0.1:5000](http://127.0.0.1:5000)
+- **Host Binding**: By default, the server binds to the local interface. For network-wide access, use the `--host` argument.
 
 ---
 
-## 🛠️ Installation & Setup (Ubuntu 24.04 Optimized)
+## 🛠️ Installation (Ubuntu 24.04 Optimized)
 
-This project is optimized for Ubuntu 24.04 using a specific `venv` strategy to avoid C++ ABI conflicts and dependency overlaps.
+This project uses a standalone `venv` strategy to ensure ABI stability and manage complex CUDA dependencies.
 
-### 1. Prerequisites
-Ensure you have Python 3.10 and the necessary VENV tools installed:
+### 1. System Requirements
 ```bash
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
-sudo apt install python3.10-venv ffmpeg
+sudo apt install python3.10-venv ffmpeg libsndfile1
 ```
 
-### 2. Environment Initialization
+### 2. Environment Setup
 ```bash
 python3.10 -m venv asr_venv
 ./asr_venv/bin/pip install --upgrade pip
@@ -46,50 +57,37 @@ python3.10 -m venv asr_venv
 
 ---
 
-## 📁 Model Management
+## 📁 Model Configuration
 
-The dashboard uses high-performance local checkpoints stored at `/mnt/TransferLearning/asr/asr`.
+The system is designed to use local high-performance checkpoints.
 
-### Available Models
-| Model Card | Parameters | Arch | Recommended Use |
-|------------|------------|------|-----------------|
-| `omniASR_LLM_1B_local` | 1B | LLM | **Default** - General purpose |
-| `omniASR_CTC_1B_local` | 1B | CTC | High speed transcription |
-| `omniASR_LLM_3B_local` | 3B | LLM | High accuracy |
+### Model Cards
+Models are managed via `fairseq2` asset cards located in `~/.config/fairseq2/assets/cards/models/omniasr_local.yaml`. This allows the dashboard to resolve identifiers (like `omniASR_LLM_1B_local`) to your local `.pt` files.
 
-### Local Configuration
-Model cards are mapped via Fairseq2 asset cards. Your configuration is located at:
-`~/.config/fairseq2/assets/cards/models/omniasr_local.yaml`
-
-Example entry:
-```yaml
-name: omniASR_LLM_1B_local
-model_family: wav2vec2_llama
-model_arch: 1b
-tokenizer_ref: omniASR_tokenizer_local
-checkpoint: file:///mnt/TransferLearning/asr/asr/omniASR-LLM-1B.pt
-```
+| Identifier | Parameters | Family |
+|------------|------------|--------|
+| `omniASR_LLM_1B_local` | 1B | LLM (Default) |
+| `omniASR_CTC_1B_local` | 1B | CTC (High Speed) |
+| `omniASR_LLM_3B_local` | 3B | LLM (High Accuracy) |
 
 ---
 
-## ⚠️ Troubleshooting & Important Notes
+## ⚠️ Important Considerations
 
-### 🎤 Microphone Access
-Modern browsers require **HTTPS** or **localhost** to use the microphone (`getUserMedia`). 
-- **Internal Access:** Use an SSH tunnel: `ssh -L 5000:localhost:5000 user@192.168.88.252` then visit `http://localhost:5000`.
-- **Browser Flag:** In Chrome, enable `#unsafely-treat-insecure-origin-as-secure` for `http://192.168.88.252:5000`.
+### 🎤 Microphone Privacy
+Browsers only allow microphone access in **Secure Contexts** (HTTPS or localhost). If accessing the dashboard remotely via IP:
+1. Use an **SSH Tunnel**: `ssh -L 5000:localhost:5000 user@remote-ip`
+2. Or enable browser flags for insecure origins (e.g., `chrome://flags/#unsafely-treat-insecure-origin-as-secure`).
 
-### ⚡ FFmpeg Libraries
-If you encounter errors related to `libnppig.so.11`, ensure you are using the system-standard FFmpeg (`/usr/bin/ffmpeg`) and that `nvidia-npp-cu12` is installed in the venv.
-
-### 🕰️ Audio Length
-Inference is currently optimized for clips shorter than **40 seconds**. Long files are automatically chunked by the dashboard for processing.
+### ⚡ Conversion Performance
+The dashboard uses system `ffmpeg` for audio conversion. Ensure `/usr/bin/ffmpeg` is available. If processing `.m4a` or `.mp3` files, the system will convert them to a model-compatible mono WAV format automatically.
 
 ---
 
-## 📜 Credits & Citation
+## 📜 License & Citation
 
-Omnilingual ASR is a research project by Meta AI.
+Omnilingual ASR is licensed under the Apache 2.0 License.
+
 ```bibtex
 @misc{omnilingualasr2025,
     title={{Omnilingual ASR}: Open-Source Multilingual Speech Recognition for 1600+ Languages},
